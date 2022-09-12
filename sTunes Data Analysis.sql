@@ -1,0 +1,476 @@
+/*
+CREATED BY: Stephaan Silne
+CREATED ON: 08-10-2022
+DESCRIPTION: sTunes Exploratory Data Analysis.
+*/
+
+
+SELECT
+	FirstName [First Name],
+	LastName [Last Name],
+	Email [Email],
+	Company [Company],
+	PostalCode [Postal Code]
+FROM
+	customers
+ORDER BY
+	FirstName DESC,
+	LastName ASC,
+	Email ASC
+LIMIT 30;
+
+-- checking for certain invoice totals. 
+
+-- check invoices where the total is $1.98
+SELECT
+	InvoiceDate AS [Invoice Date],
+	BillingAddress AS [Billing Address],
+	BillingCity AS [Billing City],
+	Total AS [Total]
+FROM 
+	invoices
+WHERE 
+	Total = 1.98
+ORDER BY
+	InvoiceDate;
+
+-- check invoices where the total doesnt equal $1.98
+SELECT
+	InvoiceDate AS [Invoice Date],
+	BillingAddress AS [Billing Address],
+	BillingCity AS [Billing City],
+	Total AS [Total]
+FROM
+	invoices
+WHERE 
+	Total <> 1.98
+ORDER BY
+	Total;
+	
+-- check invoices where the total is between $1.98-$5.00
+SELECT
+	InvoiceDate AS [Invoice Date],
+	BillingAddress AS [Billing Address],
+	BillingCity AS [Billing City],
+	Total AS [Total]
+FROM
+	invoices
+WHERE
+	Total BETWEEN 1.98 AND 5.00
+ORDER BY 
+	Total DESC
+LIMIT 10;
+
+SELECT
+	InvoiceDate as [DATE],
+	BillingAddress as [Billing Address],
+	BillingCity as [Billing City],
+	Total as [Total Amount]
+FROM
+	invoices
+WHERE
+	InvoiceDate BETWEEN '2009-01-01' AND '2009-12-31'
+ORDER BY 
+	InvoiceDate;
+	
+--top ten highest value invoices after Jan 2nd with a total greater than 3.
+
+SELECT
+	InvoiceDate as [Invoice Date],
+	BillingAddress as [Billing Address],
+	BillingState as [Billing State],
+	Total as [Total Amount]
+FROM
+	invoices
+WHERE 
+	DATE(InvoiceDate) > '2010-01-02' AND Total < 3
+ORDER BY 
+	Total
+LIMIT 10;
+
+
+/*
+all invoices whose billing city starts with P and whose total 
+is greater than $2.00.
+*/
+SELECT
+	InvoiceDate as [Date],
+	BillingCity as [Billing City],
+	Total as [Total]
+FROM
+	invoices
+WHERE 
+	BillingCity LIKE 'P%' AND Total > 2
+ORDER BY
+	Total;
+	
+/*
+all invoices that have total values higher than $3.00 whose
+billing city starts with P or D.
+*/
+	
+SELECT
+	InvoiceDate as [Date],
+	BillingAddress as [Billing Address],
+	BillingCity as [Billing City],
+	Total 
+FROM
+	invoices
+WHERE 
+	Total > 3 AND (BillingCity LIKE 'P%' OR BillingCity LIKE 'D%')
+ORDER BY
+	Total;
+	
+-- purchase type analysis.
+SELECT
+	InvoiceDate as Date,
+	BillingAddress,
+	BillingCity,
+	Total,
+	CASE
+		WHEN Total < 2.00 THEN 'Baseline Purchase'
+		WHEN Total BETWEEN 2.00 AND 6.99 THEN 'Low Purchase'
+		WHEN Total BETWEEN 7.00 AND 15.00 THEN 'Target Purchase'
+		ELSE 'Top Performers'
+	END AS PurchaseType
+FROM
+	invoices
+WHERE 
+	PurchaseType = 'Top Performers'
+ORDER BY 
+	BillingCity;
+
+-- domestic vs. foreign sales.	
+SELECT
+	InvoiceDate,
+	BillingCity,
+	BillingCountry,
+	Total,
+	CASE
+		WHEN BillingCountry = 'USA' THEN 'Domestic Sales'
+		ELSE 'Foreign Sales'
+	END AS SalesType
+FROM
+	invoices
+WHERE 
+	Total > 15.00
+ORDER BY 
+	SalesType;
+
+-- joining some tables for insight.	
+SELECT
+	e.FirstName,
+	e.LastName,
+	e.EmployeeId,
+	c.LastName,
+	c.FirstName,
+	c.SupportRepId,
+	i.InvoiceDate as [Date],
+	i.CustomerId as [CustomerId],
+	t.UnitPrice,
+	i.Total as [Total]
+FROM
+	invoices as i 
+INNER JOIN
+	customers as c
+	ON i.CustomerId = c.CustomerId
+INNER JOIN
+	employees as e
+	ON c.SupportRepId = e.EmployeeId
+INNER JOIN
+	invoice_items as t
+	ON i.InvoiceId = t.InvoiceLineId
+ORDER BY 
+	i.Total DESC
+LIMIT 10;
+
+-- troubleshooting the database with a left join.
+SELECT
+	r.ArtistId as [ArtistId from Artists Table],
+	l.ArtistId as [ArtistId from Albums Table],
+	r.Name as [Artist Name],
+	l.Title as [Album Title]
+FROM
+	artists as r
+LEFT OUTER JOIN
+	albums as l
+	ON r.ArtistId = l.ArtistId
+WHERE
+	l.ArtistId IS NULL;
+	
+--display the album names and track names in a single result set.
+SELECT
+	t.Name as [Track Name],
+	l.Title as [Album Name],
+	g.Name as [Genre]
+FROM
+	tracks as t
+INNER JOIN
+	albums as l
+	ON t.AlbumId = l.ArtistId
+INNER JOIN
+	genres as g
+	ON t.GenreId = g.GenreId;
+	
+--listing employees by number of years with the company. Which employee has been with the company the longest? (jane peacock)
+SELECT
+	FirstName,
+	LastName,
+	STRFTIME('%m-%d-%Y',HireDate) AS [Hire Date],
+	STRFTIME('%Y-%m-%d', 'now') - STRFTIME('%Y-%m-%d', HireDate) as [Yrs with Company]
+FROM
+	employees
+ORDER BY 
+	[Yrs with Company] DESC,
+	HireDate ASC;
+	
+-- descriptive stats. 
+SELECT
+	SUM(Total) as [Total Sales],
+	ROUND(AVG(Total),2) as [Rounded Avg Sales],
+	MIN(Total) as [Minimum Sales],
+	MAX(Total) as [Max Sales],
+	COUNT(*) as [Sales Count],
+	MAX(InvoiceId) as [Invoice Cnt]
+FROM
+	invoices;
+	
+-- avg sales insight.
+SELECT
+	BillingCity,
+	BillingCountry,
+	ROUND(AVG(Total),2) as [Avg. Sales]
+FROM
+	invoices
+GROUP BY
+	BillingCity,
+	BillingCountry
+HAVING
+	[Avg. Sales] > 5
+ORDER BY 
+	BillingCountry;
+	
+/* some more analysis!
+1. Create a single-line mailing list for all US customers, including
+capitalized full names and full addresses with five-digit zip codes, in the
+following format: FRANK HARRIS 1600 Amphitheatre Parkway,
+Mountain View, CA 94043
+2. What are the average annual sales generated by customers from the
+USA from all years of data available?
+3. What are the company’s all-time total sales?
+4. Who are the top ten best customers from a revenue standpoint? Hint:
+you will need to use a join (chapter 6) to answer this question.
+*/	
+SELECT
+	UPPER(FirstName)||' '|| UPPER(LastName)|| ' ' || Address
+	|| ', '|| City||', '|| State|| ' '|| SUBSTR(PostalCode,1,5) as [Mailing List]
+FROM
+	customers
+WHERE 
+	Country = 'USA';
+--------------------------------------
+SELECT
+	STRFTIME('%Y', InvoiceDate) as [Year],
+	ROUND(AVG(Total),2) as [Average Sales per Year]
+FROM
+	invoices
+WHERE 
+	BillingCountry = 'USA'
+GROUP BY
+	[Year]
+ORDER BY
+	[Year] ASC;
+---------------------------------------
+SELECT
+	SUM(Total) as [All Time Total Sales]
+FROM
+	invoices;
+---------------------------------------		
+SELECT
+	c.CustomerId as [ID],
+	c.FirstName as [First Name],
+	c.LastName as [Last Name],
+	SUM(i.Total) as [Total in Purchases]
+FROM
+	invoices as i
+INNER JOIN
+	customers as c
+	ON i.CustomerId = c.CustomerId
+GROUP BY
+	c.CustomerId
+ORDER BY 
+	[Total in Purchases] DESC
+LIMIT 10;
+
+-- how each individual city was performing against global avg. sales?
+SELECT
+	BillingCity,
+	ROUND(AVG(Total),2) as [City Avg],
+	(select
+		ROUND(AVG(Total),2)
+		from
+		invoices) AS [Global Avg]
+FROM
+	invoices
+GROUP BY
+	BillingCity
+ORDER BY
+	BillingCity;
+
+	
+/*
+the all-time largest sale from (2009-2012) and see if there are any invoices totals 
+in the latest year (2013) that are higher than that value. */
+SELECT
+	InvoiceDate,
+	BillingCity,
+	Total
+FROM
+	invoices
+WHERE
+	Date(InvoiceDate) >= '2013-01-01' AND total >
+	(select
+		MAX(Total)
+	from
+		invoices
+	where
+		Date(InvoiceDate) < '2013-01-01');
+		
+-- invoices before 2010 that are greater than the average invoice total before 2010.
+SELECT
+	DATE(InvoiceDate) as [Date],
+	BillingAddress,
+	BillingCity,
+	Total
+FROM
+	invoices
+WHERE
+	DATE(InvoiceDate) <= '2010-01-01' AND Total > 
+	(
+	select
+	ROUND(AVG(Total),2) AS [Avg Invoice Amt]
+	from
+	invoices
+	where
+	Date(InvoiceDate) <= '2010-01-01'
+	)
+ORDER BY
+	Total ASC;
+	
+/*
+1. How many invoices exceed the average invoice amount generated in
+2010?
+2. Who are the customers responsible for these invoices?
+3. How many of these customers are from the USA?
+*/		
+SELECT
+	ROUND(AVG(Total),2) as [Avg Total]
+FROM
+	invoices
+WHERE 
+	DATE(InvoiceDate) BETWEEN '2010-01-01' AND '2010-12-31';
+  ----------------------------------------------------------
+SELECT
+	COUNT(*) as [Invoices Exceed 2010 Avg.]
+FROM
+	invoices
+WHERE
+	Total > 
+	(SELECT
+		ROUND(AVG(Total),2) as [Avg Total]
+	FROM
+		invoices
+	WHERE 
+		DATE(InvoiceDate) BETWEEN '2010-01-01' AND '2010-12-31');
+	----------------------------------------------------------------	
+SELECT
+	DISTINCT i.CustomerId,
+	c.FirstName,
+	c.LastName,
+	i.BillingAddress,
+	i.BillingCity,
+	I.BillingState
+FROM
+	invoices as i
+INNER JOIN
+	customers as c
+	ON i.CustomerId = c.CustomerId
+WHERE
+	i.Total > 
+	(SELECT
+		ROUND(AVG(Total),2) as [Avg Total]
+	FROM
+		invoices
+	WHERE 
+		DATE(InvoiceDate) BETWEEN '2010-01-01' AND '2010-12-31') AND 
+		i.BillingCountry = 'USA'
+ORDER BY
+	i.Total DESC;
+
+---------------------------------------------------
+CREATE VIEW V_Tracks_InvoiceItems AS
+SELECT 
+	ii.InvoiceId,
+	ii.UnitPrice,
+	t.Name,
+	t.Composer,
+	t.Milliseconds
+FROM
+	invoice_items ii
+INNER JOIN	
+	tracks as t
+	ON ii.TrackId = t.TrackId;
+
+--------------------------------------------------
+CREATE VIEW V_inv_cus_emp AS
+SELECT
+	i.InvoiceId,
+	i.InvoiceDate,
+	i.Total,
+	i.CustomerId,
+	c.FirstName,
+	c.LastName,
+	c.SupportRepId,
+	e.EmployeeId,
+	e.LastName,
+	e.FirstName,
+	e.Title
+FROM
+	invoices as i
+INNER JOIN
+	customers as c
+	ON i.CustomerId = c.CustomerId
+INNER JOIN
+	employees as e
+	ON c.SupportRepId = e.EmployeeId
+ORDER BY 
+	InvoiceDate
+-------------------------------
+SELECT
+	*
+FROM
+	V_Tracks_InvoiceItems ii
+INNER JOIN
+	V_inv_cus_emp as ice
+	ON ii.InvoiceId = ice.InvoiceId;
+	
+CREATE VIEW V_GlobalAverage AS
+	select
+		round(avg(total),2) as [glbl avg]
+	FROM
+		invoices
+	
+CREATE VIEW V_CityAvgVsGlobalAvg AS
+SELECT
+	BillingCity,
+	ROUND(AVG(Total),2) as [City Avg],
+	(select
+		*
+	from 
+		V_GlobalAverage) AS [Global Avg]
+FROM	
+	invoices
+GROUP BY 
+	BillingCity
+ORDER BY 
+	BillingCity;
